@@ -96,6 +96,7 @@ class PublisherSearchRequest(BaseModel):
     location: Optional[str] = "Worldwide"
     keywords: Optional[str] = None
     max_publishers: int = 20
+    check_mx: bool = False
 
 
 def _safe_url(url: str) -> str:
@@ -415,6 +416,7 @@ def _run_publisher_search_task(job_id: str, req: PublisherSearchRequest):
             keywords=req.keywords or "",
             max_publishers=max(5, min(req.max_publishers, 50)),
             progress=log,
+            check_mx=getattr(req, "check_mx", False),
         )
         result = finder.search_and_extract()
 
@@ -424,7 +426,7 @@ def _run_publisher_search_task(job_id: str, req: PublisherSearchRequest):
         with open(xlsx_path, "wb") as f:
             f.write(xlsx_bytes)
 
-        csv_text = build_publisher_csv(result)
+        csv_text = build_publisher_csv(result, bom=True)
         csv_path = os.path.abspath(f"reports/publishers_{job_id[:8]}.csv")
         with open(csv_path, "w", encoding="utf-8") as f:
             f.write(csv_text)

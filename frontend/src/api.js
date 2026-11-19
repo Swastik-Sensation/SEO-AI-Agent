@@ -157,7 +157,7 @@ export function getProfileDownloadUrl(jobId) {
   return `${API_BASE}/api/profile-checker/${jobId}/download/csv`;
 }
 
-export async function apiStartPublisherSearch({ niche, location, keywords, maxPublishers = 20 }) {
+export async function apiStartPublisherSearch({ niche, location, keywords, maxPublishers = 20, checkMx = false }) {
   const r = await fetch(`${API_BASE}/api/publishers/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -166,6 +166,7 @@ export async function apiStartPublisherSearch({ niche, location, keywords, maxPu
       location: location || undefined,
       keywords: keywords || undefined,
       max_publishers: Number(maxPublishers) || 20,
+      check_mx: Boolean(checkMx),
     }),
   });
   if (!r.ok) throw new Error(await r.text());

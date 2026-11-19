@@ -3684,6 +3684,7 @@ function PublisherFinderModal({ onClose, onLaunch }) {
   const [location, setLocation] = useState('Mohali, Chandigarh, Tricity');
   const [keywords, setKeywords] = useState('');
   const [maxPublishers, setMaxPublishers] = useState(20);
+  const [checkMx, setCheckMx] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -3719,6 +3720,7 @@ function PublisherFinderModal({ onClose, onLaunch }) {
         location: location.trim(),
         keywords: keywords.trim(),
         maxPublishers: Number(maxPublishers) || 20,
+        checkMx: Boolean(checkMx),
       });
       onLaunch(job);
     } catch (err) {
@@ -3847,6 +3849,18 @@ function PublisherFinderModal({ onClose, onLaunch }) {
               onChange={(e) => setMaxPublishers(Number(e.target.value))}
               style={{ width: '100%', accentColor: '#2563eb' }}
             />
+          </div>
+
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+              <input
+                type="checkbox"
+                checked={checkMx}
+                onChange={(e) => setCheckMx(e.target.checked)}
+                style={{ accentColor: '#2563eb', cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: 500 }}>Verify Email Domain MX Records (filters out invalid/inactive mail hosts)</span>
+            </label>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
@@ -4022,6 +4036,7 @@ function PublisherResultsPage() {
   const filteredPublishers = publishers.filter((p) => {
     if (activeFilter === 'email' && (!p.emails || p.emails.length === 0)) return false;
     if (activeFilter === 'phone' && (!p.phones || p.phones.length === 0)) return false;
+    if (activeFilter === 'people' && (!p.people || p.people.length === 0)) return false;
     if (activeFilter === 'high_da' && (!p.da_score || p.da_score < 25)) return false;
     if (activeFilter === 'guidelines' && !p.guidelines_url) return false;
 
@@ -4031,6 +4046,8 @@ function PublisherResultsPage() {
       (p.name && p.name.toLowerCase().includes(q)) ||
       (p.domain && p.domain.toLowerCase().includes(q)) ||
       (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.address && p.address.toLowerCase().includes(q)) ||
+      (p.people && p.people.some((pe) => pe.toLowerCase().includes(q))) ||
       (p.emails && p.emails.some((e) => e.toLowerCase().includes(q))) ||
       (p.phones && p.phones.some((ph) => ph.includes(q))) ||
       (p.location && p.location.toLowerCase().includes(q))
@@ -4099,6 +4116,12 @@ function PublisherResultsPage() {
         </div>
       </div>
 
+      {data.notice && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <Alert type="info">{data.notice}</Alert>
+        </div>
+      )}
+
       {/* Summary Metrics Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card" style={{ padding: '1.1rem 1.25rem', borderLeft: '4px solid #3b82f6' }}>
@@ -4145,6 +4168,7 @@ function PublisherResultsPage() {
             { id: 'all', label: `All (${publishers.length})` },
             { id: 'email', label: `With Email (${summary.emails_found || 0})` },
             { id: 'phone', label: `With Phone (${summary.phones_found || 0})` },
+            { id: 'people', label: 'With People / Editors' },
             { id: 'guidelines', label: `Guest Posts (${summary.guidelines_found || 0})` },
             { id: 'high_da', label: 'DA ≥ 25' },
           ].map((f) => (
@@ -4208,7 +4232,7 @@ function PublisherResultsPage() {
                       </a>
                     </div>
 
-                    {/* DA Score badge */}
+                    {/* DA Score & Relevance badge */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                       <span
                         style={{
@@ -4223,11 +4247,27 @@ function PublisherResultsPage() {
                       >
                         DA {pub.da_score ?? 'N/A'}
                       </span>
+                      {pub.score !== undefined && pub.score !== null && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: 10,
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                          }}
+                          title={`Relevance score: ${pub.relevance || 0}`}
+                        >
+                          Score {pub.score}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Status Tag */}
-                  <div style={{ marginBottom: 8 }}>
+                  {/* Status Tag & Location */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                     <span
                       style={{
                         fontSize: '0.7rem',
@@ -4241,12 +4281,38 @@ function PublisherResultsPage() {
                     >
                       {pub.outreach_status || 'Identified'}
                     </span>
+                    {pub.location_mentioned && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          background: '#fef2f2',
+                          color: '#b91c1c',
+                          border: '1px solid #fecaca',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 3,
+                        }}
+                      >
+                        <MapPin size={10} /> Local Match
+                      </span>
+                    )}
                   </div>
 
                   {/* Description / Bio */}
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.4 }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.4 }}>
                     {pub.description}
                   </p>
+
+                  {/* Verified Address */}
+                  {pub.address && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#475569', marginBottom: 8 }}>
+                      <MapPin size={12} color="#dc2626" />
+                      <span>{pub.address}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Contacts Box */}
@@ -4324,6 +4390,23 @@ function PublisherResultsPage() {
                     </div>
                   )}
 
+                  {/* People / Editorial Team */}
+                  {pub.people && pub.people.length > 0 && (
+                    <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: 6 }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <UserCheck size={12} color="#2563eb" />
+                        <span>Editorial Team / Key Persons</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {pub.people.map((person, peIdx) => (
+                          <span key={peIdx} style={{ fontSize: '0.74rem', background: '#f1f5f9', color: '#334155', borderRadius: 4, padding: '2px 7px', border: '1px solid #e2e8f0', fontWeight: 500 }}>
+                            {person}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Useful Links: Contact Page, Guidelines & Socials */}
                   <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: '0.74rem' }}>
                     {pub.contact_page_url && (
@@ -4339,6 +4422,11 @@ function PublisherResultsPage() {
                     {pub.linkedin && (
                       <a href={pub.linkedin} target="_blank" rel="noreferrer" style={{ color: '#0077b5', textDecoration: 'none' }}>
                         LinkedIn
+                      </a>
+                    )}
+                    {pub.facebook && (
+                      <a href={pub.facebook} target="_blank" rel="noreferrer" style={{ color: '#1877f2', textDecoration: 'none' }}>
+                        Facebook
                       </a>
                     )}
                     {pub.instagram && (
