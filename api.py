@@ -37,6 +37,7 @@ jobs: dict = {}
 opportunity_jobs: dict = {}
 blog_jobs: dict = {}
 profile_jobs: dict = {}
+publisher_jobs: dict = {}
 # parsed sheets uploaded for the presence check: upload_id -> {"kind", "filename", "data", "count"}
 presence_uploads: dict = {}
 
@@ -88,6 +89,13 @@ class ProfileCheckRequest(BaseModel):
     business_name: Optional[str] = None
     niche: Optional[str] = None
     max_posts: int = 5
+
+
+class PublisherSearchRequest(BaseModel):
+    niche: str
+    location: Optional[str] = "Worldwide"
+    keywords: Optional[str] = None
+    max_publishers: int = 20
 
 
 def _safe_url(url: str) -> str:
@@ -390,6 +398,47 @@ def _run_profile_audit_task(job_id: str, req: ProfileCheckRequest):
             profile_jobs[job_id]["status"] = "error"
             profile_jobs[job_id]["error"] = str(exc)
             log(f"Error: {exc}", step=6)
+
+
+def _run_publisher_search_task(job_id: str, req: PublisherSearchRequest):
+    def log(msg: str, step: int, total_steps: int = 4):
+        entry = {"timestamp": time.time(), "message": msg, "step": step}
+        if job_id in publisher_jobs:
+            publisher_jobs[job_id]["log"].append(entry)
+            publisher_jobs[job_id]["current_step"] = step
+
+    try:
+        from tools.publisher_finder import PublisherFinder, build_publisher_excel, build_publisher_csv
+        finder = PublisherFinder(
+            niche=req.niche,
+            location=req.location or "",
+            keywords=req.keywords or "",
+            max_publishers=max(5, min(req.max_publishers, 50)),
+            progress=log,
+        )
+        result = finder.search_and_extract()
+
+        os.makedirs("reports", exist_ok=True)
+        xlsx_bytes = build_publisher_excel(result)
+        xlsx_path = os.path.abspath(f"reports/publishers_{job_id[:8]}.xlsx")
+        with open(xlsx_path, "wb") as f:
+            f.write(xlsx_bytes)
+
+        csv_text = build_publisher_csv(result)
+        csv_path = os.path.abspath(f"reports/publishers_{job_id[:8]}.csv")
+        with open(csv_path, "w", encoding="utf-8") as f:
+            f.write(csv_text)
+
+        if job_id in publisher_jobs:
+            publisher_jobs[job_id]["result"] = result
+            publisher_jobs[job_id]["xlsx_path"] = xlsx_path
+            publisher_jobs[job_id]["csv_path"] = csv_path
+            publisher_jobs[job_id]["status"] = "done"
+    except Exception as exc:
+        if job_id in publisher_jobs:
+            publisher_jobs[job_id]["status"] = "error"
+            publisher_jobs[job_id]["error"] = str(exc)
+            log(f"Error: {exc}", step=4)
 
 
 def _crawl_for_niche(url: str, max_pages: int = 5) -> dict:
@@ -878,6 +927,75 @@ def download_profile_csv(job_id: str):
     path = job.get("csv_path")
     if not path or not os.path.exists(path):
         raise HTTPException(status_code=404, detail="CSV report not found")
+    return FileResponse(path, media_type="text/csv", filename=os.path.basename(path))
+
+
+# --- Publisher Finder Endpoints ---
+
+@app.post("/api/publishers/start")
+def start_publisher_search(req: PublisherSearchRequest, background_tasks: BackgroundTasks):
+    job_id = str(uuid.uuid4())
+    publisher_jobs[job_id] = {
+        "status": "running",
+        "current_step": 1,
+        "total_steps": 4,
+        "created_at": time.time(),
+        "log": [],
+        "niche": req.niche,
+        "location": req.location,
+    }
+    background_tasks.add_task(_run_publisher_search_task, job_id, req)
+    return {"job_id": job_id, "niche": req.niche, "location": req.location, "status": "queued"}
+
+
+@app.get("/api/publishers/{job_id}/status")
+def get_publisher_status(job_id: str):
+    job = publisher_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {
+        "id": job_id,
+        "status": job.get("status"),
+        "current_step": job.get("current_step", 1),
+        "total_steps": job.get("total_steps", 4),
+        "log": job.get("log", []),
+        "error": job.get("error"),
+    }
+
+
+@app.get("/api/publishers/{job_id}/result")
+def get_publisher_result(job_id: str):
+    job = publisher_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.get("status") != "done":
+        raise HTTPException(status_code=400, detail=f"Job not done yet (status: {job.get('status')})")
+    return {"job_id": job_id, **job.get("result", {})}
+
+
+@app.get("/api/publishers/{job_id}/download/xlsx")
+def download_publisher_xlsx(job_id: str):
+    job = publisher_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    path = job.get("xlsx_path")
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Excel file not found")
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=os.path.basename(path),
+    )
+
+
+@app.get("/api/publishers/{job_id}/download/csv")
+def download_publisher_csv(job_id: str):
+    job = publisher_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    path = job.get("csv_path")
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="CSV file not found")
     return FileResponse(path, media_type="text/csv", filename=os.path.basename(path))
 
 

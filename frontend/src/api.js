@@ -157,3 +157,39 @@ export function getProfileDownloadUrl(jobId) {
   return `${API_BASE}/api/profile-checker/${jobId}/download/csv`;
 }
 
+export async function apiStartPublisherSearch({ niche, location, keywords, maxPublishers = 20 }) {
+  const r = await fetch(`${API_BASE}/api/publishers/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      niche,
+      location: location || undefined,
+      keywords: keywords || undefined,
+      max_publishers: Number(maxPublishers) || 20,
+    }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function apiGetPublisherStatus(jobId) {
+  const r = await fetch(`${API_BASE}/api/publishers/${jobId}/status`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function apiGetPublisherResult(jobId) {
+  const r = await fetch(`${API_BASE}/api/publishers/${jobId}/result`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export function getPublisherXlsxDownloadUrl(jobId) {
+  return `${API_BASE}/api/publishers/${jobId}/download/xlsx`;
+}
+
+export function getPublisherCsvDownloadUrl(jobId) {
+  return `${API_BASE}/api/publishers/${jobId}/download/csv`;
+}
+
+

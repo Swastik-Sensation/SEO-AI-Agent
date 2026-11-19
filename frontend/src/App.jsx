@@ -6,14 +6,16 @@ import {
   Download, RefreshCw, X, ChevronRight, Cpu, TrendingUp,
   Shield, Link2, Clock, Loader2, Layers, Target, Activity,
   Copy, Check, ExternalLink, Filter, BookOpen, Bot, Sparkles,
-  HelpCircle, Award, ListChecks, User, UserCheck
+  HelpCircle, Award, ListChecks, User, UserCheck,
+  Mail, Phone, MapPin, Share2
 } from 'lucide-react';
 import {
   apiDetectNiche, apiStartAudit, apiGetStatus,
   apiGetResult, getDownloadUrl, getOpportunityDownloadUrl, getOpportunityXlsxDownloadUrl, apiHealth, apiStartOpportunitySearch,
   apiGetOpportunityStatus, apiGetOpportunityResult,
   apiStartBlogCheck, apiGetBlogStatus, apiGetBlogResult, getBlogDownloadUrl,
-  apiStartProfileCheck, apiGetProfileStatus, apiGetProfileResult, getProfileDownloadUrl
+  apiStartProfileCheck, apiGetProfileStatus, apiGetProfileResult, getProfileDownloadUrl,
+  apiStartPublisherSearch, apiGetPublisherStatus, apiGetPublisherResult, getPublisherXlsxDownloadUrl, getPublisherCsvDownloadUrl
 } from './api';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -96,16 +98,24 @@ const TASKS = [
     aiPowered: true,
   },
   {
-    id: 'pagespeed',
+    id: 'publisher-finder',
     number: 5,
-    icon: '⚡',
-    gradient: 'linear-gradient(135deg, #78350f, #d97706)',
-    name: 'PageSpeed Audit',
-    subtitle: 'Core Web Vitals & Speed Audit',
-    description: 'Measure and optimise LCP, FID, CLS, and TTFB across mobile and desktop to improve user experience and rankings.',
-    features: ['Core Web Vitals scoring', 'LCP / FID / CLS analysis', 'Mobile vs desktop', 'Improvement recommendations'],
-    active: false,
-    aiPowered: false,
+    icon: '📰',
+    gradient: 'linear-gradient(135deg, #1e3a8a, #2563eb)',
+    name: 'Publisher & Blogger Outreach Finder',
+    subtitle: 'Local & Niche Publisher Contacts (Emails & Phones)',
+    description:
+      'Find blogs, publishers, and media outlets in your niche and location (e.g. Event Planning in Mohali / Chandigarh / Tricity). ' +
+      'Extracts verified editorial emails, phone/WhatsApp numbers, editor details, and contributor guidelines with 1-click Excel export.',
+    features: [
+      'Niche & hyper-local search (e.g. Chandigarh, Mohali, Tricity)',
+      'Scrapes direct editorial emails & verified phone numbers',
+      'Identifies publication bio, domain DA & editor links',
+      'Extracts contact forms & guest post guidelines',
+      'Professional Excel (.xlsx) and CSV export for outreach',
+    ],
+    active: true,
+    aiPowered: true,
   },
   {
     id: 'competitor',
@@ -3665,6 +3675,694 @@ function ProfileCheckerResultsPage() {
 }
 
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODULE 5: PUBLISHER & BLOGGER OUTREACH FINDER
+═══════════════════════════════════════════════════════════════════════════ */
+
+function PublisherFinderModal({ onClose, onLaunch }) {
+  const [niche, setNiche] = useState('Event Planning');
+  const [location, setLocation] = useState('Mohali, Chandigarh, Tricity');
+  const [keywords, setKeywords] = useState('');
+  const [maxPublishers, setMaxPublishers] = useState(20);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const NICHE_SUGGESTIONS = [
+    'Event Planning',
+    'Wedding Planners & Decor',
+    'Digital Marketing & Tech',
+    'Food & Restaurants',
+    'Real Estate & Construction',
+    'Health & Wellness'
+  ];
+
+  const LOCATION_SUGGESTIONS = [
+    'Mohali, Chandigarh, Tricity',
+    'Chandigarh',
+    'Mohali',
+    'Punjab, India',
+    'Delhi NCR',
+    'India (National)'
+  ];
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!niche.trim()) {
+      setError('Please specify your industry niche or topic.');
+      return;
+    }
+    setError('');
+    setSubmitting(true);
+    try {
+      const job = await apiStartPublisherSearch({
+        niche: niche.trim(),
+        location: location.trim(),
+        keywords: keywords.trim(),
+        maxPublishers: Number(maxPublishers) || 20,
+      });
+      onLaunch(job);
+    } catch (err) {
+      setError(err.message || 'Failed to start publisher discovery search');
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+        <div className="modal-header">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <span style={{ fontSize: '1.4rem' }}>📰</span>
+              <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>Publisher & Blogger Outreach Finder</h2>
+            </div>
+            <p className="modal-sub" style={{ margin: 0 }}>
+              Find blogs, local news & editorial publishers accepting guest content, with verified emails and phone numbers.
+            </p>
+          </div>
+          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+
+        {error && <Alert type="error">{error}</Alert>}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          <div>
+            <label className="input-label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Niche / Industry</span>
+              <span style={{ color: 'var(--accent-red)' }}>*</span>
+            </label>
+            <input
+              type="text"
+              className="text-input"
+              placeholder="e.g. Event Planning, Wedding Planners, Catering"
+              value={niche}
+              onChange={(e) => setNiche(e.target.value)}
+              required
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {NICHE_SUGGESTIONS.map((tag) => (
+                <button
+                  type="button"
+                  key={tag}
+                  onClick={() => setNiche(tag)}
+                  style={{
+                    background: niche === tag ? '#dbeafe' : 'var(--bg-card)',
+                    color: niche === tag ? '#1d4ed8' : 'var(--text-muted)',
+                    border: '1px solid ' + (niche === tag ? '#93c5fd' : 'var(--border-color)'),
+                    borderRadius: 14,
+                    padding: '2px 10px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="input-label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <MapPin size={14} color="#2563eb" />
+              <span>Target Location / Region</span>
+            </label>
+            <input
+              type="text"
+              className="text-input"
+              placeholder="e.g. Mohali, Chandigarh, Tricity or Worldwide"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {LOCATION_SUGGESTIONS.map((loc) => (
+                <button
+                  type="button"
+                  key={loc}
+                  onClick={() => setLocation(loc)}
+                  style={{
+                    background: location === loc ? '#dbeafe' : 'var(--bg-card)',
+                    color: location === loc ? '#1d4ed8' : 'var(--text-muted)',
+                    border: '1px solid ' + (location === loc ? '#93c5fd' : 'var(--border-color)'),
+                    borderRadius: 14,
+                    padding: '2px 10px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              Tip: Including city names (e.g. Mohali, Chandigarh) extracts local landline (0172) and regional mobile outreach numbers.
+            </div>
+          </div>
+
+          <div>
+            <label className="input-label" style={{ fontWeight: 600 }}>
+              Optional Keywords / Extra Focus
+            </label>
+            <input
+              type="text"
+              className="text-input"
+              placeholder="e.g. corporate party, wedding decorator, guest post, pr"
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <label className="input-label" style={{ fontWeight: 600 }}>Maximum Publishers to Deep-Crawl</label>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#2563eb' }}>{maxPublishers} Websites</span>
+            </div>
+            <input
+              type="range"
+              min="10"
+              max="50"
+              step="5"
+              value={maxPublishers}
+              onChange={(e) => setMaxPublishers(Number(e.target.value))}
+              style={{ width: '100%', accentColor: '#2563eb' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={submitting}
+              style={{ background: 'linear-gradient(135deg, #1e3a8a, #2563eb)', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  <span>Starting Discovery...</span>
+                </>
+              ) : (
+                <>
+                  <span>Start Outreach Discovery</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PublisherResultsPage() {
+  const { jobId } = useParams();
+  const navigate = useNavigate();
+  const [status, setStatus] = useState(null);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [copiedKey, setCopiedKey] = useState('');
+
+  const PUBLISHER_STEPS = [
+    { num: 1, label: 'Search Footprints', desc: 'Querying blogs, guest posts & local publishers' },
+    { num: 2, label: 'Contact Scraper', desc: 'Crawling home, editorial & contact pages' },
+    { num: 3, label: 'Enrichment', desc: 'Validating emails, phone/WhatsApp & DA scores' },
+    { num: 4, label: 'Export Builder', desc: 'Building professional Excel & CSV workbooks' },
+  ];
+
+  useEffect(() => {
+    let timer;
+    let isCancelled = false;
+
+    async function poll() {
+      try {
+        const s = await apiGetPublisherStatus(jobId);
+        if (isCancelled) return;
+        setStatus(s);
+
+        if (s.status === 'done') {
+          const res = await apiGetPublisherResult(jobId);
+          if (isCancelled) return;
+          setData(res);
+        } else if (s.status === 'error') {
+          setError(s.error || 'Publisher search failed');
+        } else {
+          timer = setTimeout(poll, 1500);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err.message || 'Error checking publisher search status');
+        }
+      }
+    }
+
+    poll();
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [jobId]);
+
+  function handleCopy(text, key) {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(''), 2200);
+  }
+
+  function handleCopyAllEmails() {
+    if (!data?.publishers) return;
+    const allEmails = [];
+    data.publishers.forEach((p) => {
+      if (p.emails && p.emails.length > 0) {
+        p.emails.forEach((e) => {
+          if (!allEmails.includes(e)) allEmails.push(e);
+        });
+      }
+    });
+    if (allEmails.length > 0) {
+      handleCopy(allEmails.join(', '), 'all_emails');
+    }
+  }
+
+  if (!data && !error) {
+    const curStep = status?.current_step || 1;
+    const logs = status?.log || [];
+    return (
+      <div style={{ maxWidth: 860, margin: '2rem auto', padding: '0 1rem' }}>
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+            <Loader2 size={28} className="spin" color="#2563eb" />
+          </div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
+            Discovering Publishers & Blogger Contacts
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0 0 1.5rem' }}>
+            Searching niche footprints and deep-scraping contact emails and phone numbers...
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: '2rem' }}>
+            {PUBLISHER_STEPS.map((s) => {
+              const isPast = curStep > s.num;
+              const isCur = curStep === s.num;
+              return (
+                <div
+                  key={s.num}
+                  style={{
+                    padding: '0.85rem 0.5rem',
+                    borderRadius: 8,
+                    border: '1px solid ' + (isCur ? '#2563eb' : isPast ? '#10b981' : 'var(--border-color)'),
+                    background: isCur ? '#eff6ff' : isPast ? '#f0fdf4' : 'var(--bg-card)',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    {isPast ? <CheckCircle2 size={16} color="#10b981" /> : isCur ? <Loader2 size={16} className="spin" color="#2563eb" /> : <div style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--border-color)', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.num}</div>}
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: isCur ? '#1d4ed8' : isPast ? '#065f46' : 'var(--text-primary)' }}>{s.label}</span>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>{s.desc}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ background: '#0f172a', borderRadius: 8, padding: '1rem', textAlign: 'left', maxHeight: 220, overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.78rem', color: '#94a3b8' }}>
+            <div style={{ color: '#38bdf8', marginBottom: 6 }}>● Live Extraction Console</div>
+            {logs.length === 0 && <div>Connecting to crawler queue...</div>}
+            {logs.map((l, i) => (
+              <div key={i} style={{ marginBottom: 3 }}>
+                <span style={{ color: '#64748b' }}>[{new Date(l.timestamp * 1000).toLocaleTimeString()}]</span> {l.message}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: 800, margin: '2rem auto', padding: '0 1rem' }}>
+        <Alert type="error">{error}</Alert>
+        <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginTop: '1rem' }}>
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const publishers = data?.publishers || [];
+  const summary = data?.summary || {};
+
+  const filteredPublishers = publishers.filter((p) => {
+    if (activeFilter === 'email' && (!p.emails || p.emails.length === 0)) return false;
+    if (activeFilter === 'phone' && (!p.phones || p.phones.length === 0)) return false;
+    if (activeFilter === 'high_da' && (!p.da_score || p.da_score < 25)) return false;
+    if (activeFilter === 'guidelines' && !p.guidelines_url) return false;
+
+    if (!searchFilter.trim()) return true;
+    const q = searchFilter.toLowerCase();
+    return (
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.domain && p.domain.toLowerCase().includes(q)) ||
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.emails && p.emails.some((e) => e.toLowerCase().includes(q))) ||
+      (p.phones && p.phones.some((ph) => ph.includes(q))) ||
+      (p.location && p.location.toLowerCase().includes(q))
+    );
+  });
+
+  return (
+    <div style={{ maxWidth: 1200, margin: '2rem auto', padding: '0 1rem' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '1.6rem' }}>📰</span>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Publisher & Blogger Outreach Sheet</h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <span>Niche: <strong style={{ color: 'var(--text-primary)' }}>{data.niche}</strong></span>
+            <span>•</span>
+            <span>Location: <strong style={{ color: 'var(--text-primary)' }}>{data.location || 'Worldwide'}</strong></span>
+            <span>•</span>
+            <span>Found: <strong style={{ color: '#2563eb' }}>{publishers.length} Publishers</strong></span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={handleCopyAllEmails}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem' }}
+          >
+            {copiedKey === 'all_emails' ? <Check size={15} color="#10b981" /> : <Copy size={15} />}
+            <span>{copiedKey === 'all_emails' ? 'Emails Copied!' : 'Copy All Emails'}</span>
+          </button>
+
+          <a
+            href={getPublisherCsvDownloadUrl(jobId)}
+            className="btn-secondary"
+            download
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem', textDecoration: 'none' }}
+          >
+            <Download size={15} />
+            <span>CSV Export</span>
+          </a>
+
+          <a
+            href={getPublisherXlsxDownloadUrl(jobId)}
+            download
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: '0.88rem',
+              fontWeight: 600,
+              color: '#ffffff',
+              background: 'linear-gradient(135deg, #059669, #10b981)',
+              padding: '0.55rem 1.1rem',
+              borderRadius: 6,
+              textDecoration: 'none',
+              boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
+            }}
+          >
+            <Download size={16} />
+            <span>Download Excel Sheet (.xlsx)</span>
+          </a>
+        </div>
+      </div>
+
+      {/* Summary Metrics Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="card" style={{ padding: '1.1rem 1.25rem', borderLeft: '4px solid #3b82f6' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Publishers</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 2, color: 'var(--text-primary)' }}>{publishers.length}</div>
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2 }}>Websites in {data.niche}</div>
+        </div>
+
+        <div className="card" style={{ padding: '1.1rem 1.25rem', borderLeft: '4px solid #10b981' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Editorial Emails</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 2, color: '#059669' }}>{summary.emails_found || 0}</div>
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2 }}>Ready for direct email pitching</div>
+        </div>
+
+        <div className="card" style={{ padding: '1.1rem 1.25rem', borderLeft: '4px solid #8b5cf6' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Phone / WhatsApp</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 2, color: '#7c3aed' }}>{summary.phones_found || 0}</div>
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2 }}>Verified calling & WhatsApp numbers</div>
+        </div>
+
+        <div className="card" style={{ padding: '1.1rem 1.25rem', borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Guest Post Guides</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: 2, color: '#d97706' }}>{summary.guidelines_found || 0}</div>
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2 }}>"Write for Us" / Contributor guidelines</div>
+        </div>
+      </div>
+
+      {/* Search and Filter Section */}
+      <div className="card" style={{ padding: '1rem', marginBottom: '1.25rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 260 }}>
+          <Search size={16} color="var(--text-muted)" />
+          <input
+            type="text"
+            className="text-input"
+            style={{ width: '100%', padding: '0.45rem 0.75rem', fontSize: '0.85rem' }}
+            placeholder="Search publishers by name, domain, city or description..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            { id: 'all', label: `All (${publishers.length})` },
+            { id: 'email', label: `With Email (${summary.emails_found || 0})` },
+            { id: 'phone', label: `With Phone (${summary.phones_found || 0})` },
+            { id: 'guidelines', label: `Guest Posts (${summary.guidelines_found || 0})` },
+            { id: 'high_da', label: 'DA ≥ 25' },
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              style={{
+                background: activeFilter === f.id ? '#2563eb' : 'var(--bg-page)',
+                color: activeFilter === f.id ? '#ffffff' : 'var(--text-primary)',
+                border: '1px solid ' + (activeFilter === f.id ? '#2563eb' : 'var(--border-color)'),
+                borderRadius: 20,
+                padding: '4px 12px',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                fontWeight: activeFilter === f.id ? 600 : 500,
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Publishers List */}
+      {filteredPublishers.length === 0 ? (
+        <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          No publishers match the selected filters.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1rem' }}>
+          {filteredPublishers.map((pub, idx) => {
+            const hasContacts = (pub.emails && pub.emails.length > 0) || (pub.phones && pub.phones.length > 0);
+            return (
+              <div
+                key={pub.domain || idx}
+                className="card"
+                style={{
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  border: hasContacts ? '1px solid #bfdbfe' : '1px solid var(--border-color)',
+                  position: 'relative',
+                }}
+              >
+                {/* Publisher Header */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 2px', lineHeight: 1.3 }}>
+                        {pub.name || pub.domain}
+                      </h3>
+                      <a
+                        href={pub.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: '0.78rem', color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        {pub.domain} <ExternalLink size={11} />
+                      </a>
+                    </div>
+
+                    {/* DA Score badge */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          background: (pub.da_score || 0) >= 30 ? '#dcfce7' : '#fef3c7',
+                          color: (pub.da_score || 0) >= 30 ? '#15803d' : '#b45309',
+                          border: '1px solid ' + ((pub.da_score || 0) >= 30 ? '#86efac' : '#fde68a'),
+                        }}
+                      >
+                        DA {pub.da_score ?? 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status Tag */}
+                  <div style={{ marginBottom: 8 }}>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        background: hasContacts ? '#f0fdf4' : '#f8fafc',
+                        color: hasContacts ? '#16a34a' : 'var(--text-muted)',
+                        border: '1px solid ' + (hasContacts ? '#bbf7d0' : 'var(--border-color)'),
+                      }}
+                    >
+                      {pub.outreach_status || 'Identified'}
+                    </span>
+                  </div>
+
+                  {/* Description / Bio */}
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.4 }}>
+                    {pub.description}
+                  </p>
+                </div>
+
+                {/* Contacts Box */}
+                <div style={{ background: '#f8fafc', borderRadius: 6, padding: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Emails */}
+                  {pub.emails && pub.emails.length > 0 ? (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Mail size={12} color="#059669" />
+                        <span>Editorial Emails</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {pub.emails.map((email, eIdx) => (
+                          <div key={eIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, fontSize: '0.78rem' }}>
+                            <a href={`mailto:${email}`} style={{ color: '#059669', textDecoration: 'none', fontWeight: 600, wordBreak: 'break-all' }}>
+                              {email}
+                            </a>
+                            <button
+                              onClick={() => handleCopy(email, `email_${idx}_${eIdx}`)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                              title="Copy Email"
+                            >
+                              {copiedKey === `email_${idx}_${eIdx}` ? <Check size={12} color="#10b981" /> : <Copy size={12} color="var(--text-muted)" />}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      No direct email scraped from public pages
+                    </div>
+                  )}
+
+                  {/* Phones / WhatsApp */}
+                  {pub.phones && pub.phones.length > 0 && (
+                    <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: 6 }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Phone size={12} color="#7c3aed" />
+                        <span>Phone / WhatsApp</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {pub.phones.map((phone, pIdx) => {
+                          const digitsOnly = phone.replace(/[^0-9]/g, '');
+                          const isWhatsAppCandidate = digitsOnly.length >= 10;
+                          return (
+                            <div key={pIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, fontSize: '0.78rem' }}>
+                              <a href={`tel:${phone}`} style={{ color: '#7c3aed', textDecoration: 'none', fontWeight: 600 }}>
+                                {phone}
+                              </a>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {isWhatsAppCandidate && (
+                                  <a
+                                    href={`https://wa.me/${digitsOnly.startsWith('91') ? digitsOnly : '91' + digitsOnly.slice(-10)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ fontSize: '0.68rem', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: 4, padding: '1px 5px', textDecoration: 'none', fontWeight: 600 }}
+                                    title="Open WhatsApp chat"
+                                  >
+                                    WhatsApp
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => handleCopy(phone, `phone_${idx}_${pIdx}`)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                                  title="Copy Phone"
+                                >
+                                  {copiedKey === `phone_${idx}_${pIdx}` ? <Check size={12} color="#10b981" /> : <Copy size={12} color="var(--text-muted)" />}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Useful Links: Contact Page, Guidelines & Socials */}
+                  <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: '0.74rem' }}>
+                    {pub.contact_page_url && (
+                      <a href={pub.contact_page_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        Contact Page <ExternalLink size={10} />
+                      </a>
+                    )}
+                    {pub.guidelines_url && (
+                      <a href={pub.guidelines_url} target="_blank" rel="noreferrer" style={{ color: '#d97706', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        Write For Us <ExternalLink size={10} />
+                      </a>
+                    )}
+                    {pub.linkedin && (
+                      <a href={pub.linkedin} target="_blank" rel="noreferrer" style={{ color: '#0077b5', textDecoration: 'none' }}>
+                        LinkedIn
+                      </a>
+                    )}
+                    {pub.instagram && (
+                      <a href={pub.instagram} target="_blank" rel="noreferrer" style={{ color: '#e1306c', textDecoration: 'none' }}>
+                        Instagram
+                      </a>
+                    )}
+                    {pub.twitter && (
+                      <a href={pub.twitter} target="_blank" rel="noreferrer" style={{ color: '#1da1f2', textDecoration: 'none' }}>
+                        Twitter/X
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function HomePage() {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
@@ -3690,6 +4388,7 @@ function HomePage() {
     if (task.id === 'opportunity-finder') setShowModal('opportunities');
     if (task.id === 'blog-checker') setShowModal('blog-checker');
     if (task.id === 'profile-checker') setShowModal('profile-checker');
+    if (task.id === 'publisher-finder') setShowModal('publisher-finder');
   }
 
   if (activeJob) {
@@ -3788,6 +4487,7 @@ function HomePage() {
       {showModal === 'opportunities' && <OpportunityModal onClose={() => setShowModal(false)} onLaunch={(job) => navigate(`/opportunities/${job.job_id}`)} />}
       {showModal === 'blog-checker' && <BlogCheckerModal onClose={() => setShowModal(false)} onLaunch={(job) => navigate(`/blog-checker/${job.job_id}`)} />}
       {showModal === 'profile-checker' && <ProfileCheckerModal onClose={() => setShowModal(false)} onLaunch={(job) => navigate(`/profile-checker/${job.job_id}`)} />}
+      {showModal === 'publisher-finder' && <PublisherFinderModal onClose={() => setShowModal(false)} onLaunch={(job) => navigate(`/publishers/${job.job_id}`)} />}
     </div>
   );
 }
@@ -3849,6 +4549,9 @@ export default function App() {
         } />
         <Route path="/profile-checker/:jobId" element={
           <div className="page"><ProfileCheckerResultsPage /></div>
+        } />
+        <Route path="/publishers/:jobId" element={
+          <div className="page"><PublisherResultsPage /></div>
         } />
       </Routes>
     </div>
