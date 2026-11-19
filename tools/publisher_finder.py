@@ -143,8 +143,8 @@ _NICHE_PROFILES = [
 ]
 _STOPWORDS = {"and", "the", "for", "with", "in", "of", "to", "a"}
 
-MIN_RELEVANCE = 3          # publishers scoring below this are dropped
-MAX_QUERIES = 14
+MIN_RELEVANCE = 1          # publishers scoring below this are dropped
+MAX_QUERIES = 12
 PAGE_CAP = 1_500_000       # chars of HTML kept per page
 
 _ddg_lock = threading.Lock()
@@ -164,14 +164,14 @@ def _ddgs_search(query: str, n: int = 12) -> list[dict]:
             except ImportError:
                 from duckduckgo_search import DDGS
             with DDGS() as d:
-                for kwargs in ({"region": "in-en", "backend": "auto"}, {"backend": "auto"}, {}):
+                try:
+                    res = list(d.text(query, max_results=n))
+                except Exception:
                     try:
-                        res = list(d.text(query, max_results=n, **kwargs))
-                        if res:
-                            break
+                        res = list(d.text(query, backend="html", max_results=n))
                     except Exception as e:  # noqa: BLE001
-                        log.debug("ddgs %r with %s failed: %s", query, kwargs, e)
-            time.sleep(0.5)
+                        log.debug("ddgs %r failed: %s", query, e)
+            time.sleep(0.3)
         except Exception as e:  # noqa: BLE001
             log.warning("ddgs search failed for %r: %s", query, e)
         return res
@@ -509,12 +509,15 @@ class PublisherFinder:
         keywords: str = "",
         max_publishers: int = 20,
         progress: Optional[Callable[[str, int, int], None]] = None,
+        check_mx: bool = False,
+        **kwargs: Any,
     ):
         self.niche = (niche or "General Business").strip()
         self.location = (location or "Worldwide").strip()
         self.keywords = (keywords or "").strip()
         self.max_publishers = max(5, min(max_publishers, 50))
         self.progress = progress
+        self.check_mx = check_mx
 
         self.cities, self.tricity = _parse_cities(self.location)
         self.loc_tokens = {c.lower() for c in self.cities}
@@ -619,31 +622,31 @@ class PublisherFinder:
         if self.cities:
             main = self.cities[0]
             q.append(f'{n} blog {main}')
-            for c in self.cities[:3]:
-                q.append(f'"{n}" "{c}" "write for us" OR "guest post"')
-            q.append(f'"{n}" blog OR magazine OR news "{main}"')
+            q.append(f'{n} {main} "write for us"')
+            q.append(f'{n} {main} guest post')
             q.append(f'best {n} blogs {main}')
+            q.append(f'{n} event planners {main} blog')
             for c in self.cities[1:3]:
-                q.append(f'{n} bloggers {c}')
+                q.append(f'{n} blog {c}')
+                q.append(f'{n} {c} "write for us"')
             if self.tricity:
-                q.append(f'"{n}" Tricity blog OR magazine')
-            for v in self.variants[:3]:
-                q.append(f'{v} blog OR magazine {main}')
-            # Few publishers are strictly local, so also look India-wide; location is a ranking bonus.
+                q.append(f'{n} Tricity blog')
+                q.append(f'{n} Chandigarh Mohali magazine')
+            for v in self.variants[:2]:
+                q.append(f'{v} blog {main}')
+            # Look region-wide / India-wide as well
             q.append(f'{n} "write for us" India')
             q.append(f'best {n} blogs India')
-            if self.variants:
-                q.append(f'{self.variants[0]} "guest post" India')
             if kw:
-                q.append(f'"{n}" {main} {kw}')
+                q.append(f'{n} {main} {kw}')
         else:
-            q.append(f'"{n}" blog OR magazine OR publisher "write for us"')
-            q.append(f'top "{n}" blogs "contact us"')
-            q.append(f'"{n}" guest post submission websites')
+            q.append(f'{n} blog "write for us"')
+            q.append(f'{n} guest post')
+            q.append(f'top {n} blogs "contact us"')
             for v in self.variants[:3]:
                 q.append(f'{v} "write for us"')
             if kw:
-                q.append(f'"{n}" {kw} blog')
+                q.append(f'{n} {kw} blog')
         return _dedupe(q)[:MAX_QUERIES]
 
     def discover_candidate_domains(self) -> Dict[str, str]:
@@ -768,7 +771,8 @@ class PublisherFinder:
             raw_emails += p["jsonld"].get("emails", [])
             raw_emails += _emails_from_text(p["text"])
         emails = _dedupe(e for e in (_clean_email(x) for x in raw_emails) if e)
-        emails = [e for e in emails if _has_mx(e.split("@")[1]) is not False]
+        if getattr(self, "check_mx", False):
+            emails = [e for e in emails if _has_mx(e.split("@")[1]) is not False]
         emails.sort(key=lambda e: _email_rank(e, site))
 
         # 6. Phones / WhatsApp

@@ -3730,148 +3730,157 @@ function PublisherFinderModal({ onClose, onLaunch }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 620, width: '92%' }}>
         <div className="modal-header">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>📰</span>
-              <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>Publisher & Blogger Outreach Finder</h2>
+            <div className="modal-tag" style={{ color: 'var(--accent-blue)', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: 4 }}>
+              Module 5 · Blogger & Media Outreach
             </div>
-            <p className="modal-sub" style={{ margin: 0 }}>
-              Find blogs, local news & editorial publishers accepting guest content, with verified emails and phone numbers.
+            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 750, color: 'var(--text-primary)' }}>
+              📰 Publisher & Blogger Outreach Finder
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+              Find relevant blogs, news outlets & publishers with verified emails and phone numbers.
             </p>
           </div>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
         </div>
 
-        {error && <Alert type="error">{error}</Alert>}
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+            {error && <Alert type="error">{error}</Alert>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          <div>
-            <label className="input-label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Niche / Industry</span>
-              <span style={{ color: 'var(--accent-red)' }}>*</span>
-            </label>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="e.g. Event Planning, Wedding Planners, Catering"
-              value={niche}
-              onChange={(e) => setNiche(e.target.value)}
-              required
-            />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              {NICHE_SUGGESTIONS.map((tag) => (
-                <button
-                  type="button"
-                  key={tag}
-                  onClick={() => setNiche(tag)}
-                  style={{
-                    background: niche === tag ? '#dbeafe' : 'var(--bg-card)',
-                    color: niche === tag ? '#1d4ed8' : 'var(--text-muted)',
-                    border: '1px solid ' + (niche === tag ? '#93c5fd' : 'var(--border-color)'),
-                    borderRadius: 14,
-                    padding: '2px 10px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="input-label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <MapPin size={14} color="#2563eb" />
-              <span>Target Location / Region</span>
-            </label>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="e.g. Mohali, Chandigarh, Tricity or Worldwide"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-            />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              {LOCATION_SUGGESTIONS.map((loc) => (
-                <button
-                  type="button"
-                  key={loc}
-                  onClick={() => setLocation(loc)}
-                  style={{
-                    background: location === loc ? '#dbeafe' : 'var(--bg-card)',
-                    color: location === loc ? '#1d4ed8' : 'var(--text-muted)',
-                    border: '1px solid ' + (location === loc ? '#93c5fd' : 'var(--border-color)'),
-                    borderRadius: 14,
-                    padding: '2px 10px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              Tip: Including city names (e.g. Mohali, Chandigarh) extracts local landline (0172) and regional mobile outreach numbers.
-            </div>
-          </div>
-
-          <div>
-            <label className="input-label" style={{ fontWeight: 600 }}>
-              Optional Keywords / Extra Focus
-            </label>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="e.g. corporate party, wedding decorator, guest post, pr"
-              value={keywords}
-              onChange={(e) => setKeywords(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <label className="input-label" style={{ fontWeight: 600 }}>Maximum Publishers to Deep-Crawl</label>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#2563eb' }}>{maxPublishers} Websites</span>
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="50"
-              step="5"
-              value={maxPublishers}
-              onChange={(e) => setMaxPublishers(Number(e.target.value))}
-              style={{ width: '100%', accentColor: '#2563eb' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span>Niche / Industry</span>
+                <span style={{ color: 'var(--accent-red)' }}>*</span>
+              </label>
               <input
-                type="checkbox"
-                checked={checkMx}
-                onChange={(e) => setCheckMx(e.target.checked)}
-                style={{ accentColor: '#2563eb', cursor: 'pointer' }}
+                type="text"
+                className="form-input"
+                placeholder="e.g. Event Planning, Wedding Planners, Catering"
+                value={niche}
+                onChange={(e) => setNiche(e.target.value)}
+                required
+                style={{ width: '100%', boxSizing: 'border-box' }}
               />
-              <span style={{ fontWeight: 500 }}>Verify Email Domain MX Records (filters out invalid/inactive mail hosts)</span>
-            </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+                {NICHE_SUGGESTIONS.map((tag) => (
+                  <button
+                    type="button"
+                    key={tag}
+                    onClick={() => setNiche(tag)}
+                    style={{
+                      background: niche === tag ? 'var(--accent-blue-bg)' : 'var(--bg-subtle)',
+                      color: niche === tag ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                      border: '1px solid ' + (niche === tag ? 'var(--accent-blue-bd)' : 'var(--border-light)'),
+                      borderRadius: 14,
+                      padding: '3px 10px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontWeight: niche === tag ? 600 : 500,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <MapPin size={13} color="var(--accent-blue)" />
+                <span>Target Location / Region</span>
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Mohali, Chandigarh, Tricity or Worldwide"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+                {LOCATION_SUGGESTIONS.map((loc) => (
+                  <button
+                    type="button"
+                    key={loc}
+                    onClick={() => setLocation(loc)}
+                    style={{
+                      background: location === loc ? 'var(--accent-blue-bg)' : 'var(--bg-subtle)',
+                      color: location === loc ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                      border: '1px solid ' + (location === loc ? 'var(--accent-blue-bd)' : 'var(--border-light)'),
+                      borderRadius: 14,
+                      padding: '3px 10px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontWeight: location === loc ? 600 : 500,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+              <p className="form-hint" style={{ marginTop: 4 }}>
+                Tip: Including city names (e.g. Mohali, Chandigarh) extracts local landline (0172) and regional mobile outreach numbers.
+              </p>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" style={{ marginBottom: 6 }}>
+                Optional Keywords / Extra Focus
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. corporate party, wedding decorator, guest post, pr"
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ margin: 0 }}>Maximum Publishers to Deep-Crawl</label>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-blue)' }}>{maxPublishers} Websites</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="50"
+                step="5"
+                value={maxPublishers}
+                onChange={(e) => setMaxPublishers(Number(e.target.value))}
+                style={{ width: '100%', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ padding: '0.75rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: '0.84rem', cursor: 'pointer', color: 'var(--text-primary)', margin: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={checkMx}
+                  onChange={(e) => setCheckMx(e.target.checked)}
+                  style={{ accentColor: 'var(--accent-blue)', cursor: 'pointer', width: 16, height: 16 }}
+                />
+                <span style={{ fontWeight: 550 }}>Verify Email Domain MX Records (filters out dead mail hosts)</span>
+              </label>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={submitting}>
+          <div className="modal-footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border-light)' }}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="btn btn-primary"
               disabled={submitting}
-              style={{ background: 'linear-gradient(135deg, #1e3a8a, #2563eb)', display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}
             >
               {submitting ? (
                 <>
@@ -3880,8 +3889,8 @@ function PublisherFinderModal({ onClose, onLaunch }) {
                 </>
               ) : (
                 <>
+                  <Search size={16} />
                   <span>Start Outreach Discovery</span>
-                  <ArrowRight size={16} />
                 </>
               )}
             </button>
@@ -4023,7 +4032,7 @@ function PublisherResultsPage() {
     return (
       <div style={{ maxWidth: 800, margin: '2rem auto', padding: '0 1rem' }}>
         <Alert type="error">{error}</Alert>
-        <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginTop: '1rem' }}>
+        <button className="btn btn-secondary" onClick={() => navigate('/')} style={{ marginTop: '1rem' }}>
           Back to Dashboard
         </button>
       </div>
